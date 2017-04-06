@@ -1,7 +1,7 @@
 /*
 Main program for the virtual memory project.
 Make all of your modifications to this file.
-You may add or rearrange any code or data as you need.
+You may add or rearrayange any code or data as you need.
 The header files page_table.h and disk.h explain
 how to use the page table and disk interfaces.
 */
@@ -15,14 +15,106 @@ how to use the page table and disk interfaces.
 #include <string.h>
 #include <errno.h>
 
-void page_fault_handler( struct page_table *pt, int page )
-{
-	printf("page fault on page #%d\n",page);
-	exit(1);
+int pageFault=0;
+int diskWrite=0;
+int diskRead=0;
+int counter=0;
+int *arrayay;
+struct disk *disk;
+int check;
+
+void page_fault_handler( struct page_table *pt, int page ){
+	int no_pages=page_table_get_npages(pt);
+	int no_frames=page_table_get_nframes(pt);
+	char *physmen=page_table_get_physmen(pt);
+	if (no_frames >= no_pages){
+		printf("page fault on page #%d\n",page);
+		page_table_set_entry(pt, page, page,PROT_READ|PROT_WRITE);
+		pageFault++;
+		diskRead=0;
+		diskWrite=0;
+	}
+	else{
+		if (check==3){
+			pageFault++;
+			int temp=page%no_frames;
+			if (array[temp]==page){
+				page_table_set_entry(pt,page,temp,PROT_READ|PROT_WRITE);
+	                        pageFault--;
+			}
+			else if(array[temp]==-1){
+				page_table_set_entry(pt,page,temp,PROT_READ);
+				disk_read(disk,page,&physmem[temp*PAGE_SIZE]);
+				diskRead++;
+			}
+			else{
+            			disk_write(disk,array[temp],&physmem[temp*PAGE_SIZE]);
+                        	disk_read(disk,page,&physmem[temp*PAGE_SIZE]);
+                                diskRead++;
+                                diskWrite++;
+                                page_table_set_entry(pt,page,temp,PROT_READ);
+                        }
+                        array[temp]=page;
+                        page_table_print(pt);
+		}	
+	else if(check==2){
+		pageFault++;
+		int k=LinearSearch(0,no_frames-1,page);
+ 		if(k > -1){
+             		page_table_set_entry(pt,page,k,PROT_READ|PROT_WRITE);
+                       	counter--;
+                        pageFault--;
+                }
+                else if(array[counter]==-1){
+                        page_table_set_entry(pt,page,counter,PROT_READ);
+                        disk_read(disk,page,&physmem[counter*PAGE_SIZE]);
+                        diskRead++;
+                }
+		else{
+        		disk_write(disk,array[counter],&physmem[counter*PAGE_SIZE]);
+        		disk_read(disk,page,&physmem[counter*PAGE_SIZE]);
+        		diskRead++;
+        		diskWrite++;
+                	page_table_set_entry(pt,page,counter,PROT_READ);
+        	}
+            	array[counter]=page;
+            	counter=(counter+1)%no_frames;
+            	page_table_print(pt);
+        }
+
+        //Implementation of RAND.
+        else{
+        	pageFault++;
+                int k=LinearSearch(0,no_frames-1,page);
+        	int temp=lrand48()%no_frames;
+        	if(k > -1){
+        		page_table_set_entry(pt,page,k,PROT_READ|PROT_WRITE);
+            		pageFault--;
+            	}
+            	else if(counter < no_frames){
+            		while(array[temp]!=-1){
+            			temp=lrand48()%no_frames;
+            			pageFault++;
+            		}
+            		page_table_set_entry(pt,page,temp,PROT_READ);
+            		disk_read(disk,page,&physmem[temp*PAGE_SIZE]);
+            		diskRead++;
+            		array[temp]=page;
+            		counter++;
+            	}
+            	else{
+            		disk_write(disk,array[temp],&physmem[temp*PAGE_SIZE]);
+            		disk_read(disk,page,&physmem[temp*PAGE_SIZE]);
+            		diskRead++;
+            		diskWrite++;
+            		page_table_set_entry(pt,page,temp,PROT_READ);
+            		array[temp]=page;
+            	}
+        	page_table_print(pt);
+	}
 }
 
-int main( int argc, char *argv[] )
-{
+int main( int argc, char *argv[] ){
 	if(argc!=5) {
 		printf("use: virtmem <npages> <nframes> <rand|fifo|lru|custom> <sort|scan|focus>\n");
 		return 1;
