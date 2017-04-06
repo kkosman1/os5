@@ -12,7 +12,8 @@ int checker;
 int pageFault=0;
 int diskRead=0;
 int diskWrite=0;
-int counter=0;
+counter=-1;
+int evict=-1;
 
 void printResults(){
 	printf("\nSUMMARY:\n");
@@ -21,85 +22,64 @@ void printResults(){
 	printf("No. of disk writes:%d\n",diskWrite);
 }
 
-int findKey(int left, int right, int key){
-	int start;
-	for(start=left; start<=right; start++){
-		if(arrayPages[start]==key){
-			return start;
+int LinearSearch(int left, int right, int key){
+	int i;
+	for(i=left; i<=right; i++){
+		if(arrayPages[i]==key){
+			return i;
 		}
 	}
 	return -1;
 }
 
 void page_fault_handler( struct page_table *pt, int page ){
-	int no_pages=page_table_get_npages(pt);
-	int no_frames=page_table_get_nframes(pt);
+	int npages=page_table_get_npages(pt);
+	int nframes=page_table_get_nframes(pt);
 	char *physmem = page_table_get_physmem(pt);
 
-	if(no_frames >= no_pages){
-		printf("page fault on page #%d\n",page);
-		page_table_set_entry(pt,page,page,PROT_READ|PROT_WRITE);
-		diskRead=0;
-		diskWrite=0;
-		pageFault++;
+	if(counter < nframes){
+		page_table_set_entry(pt,page,evict,PROT_READ);
+                disk_read(disk,page,&physmem[evict*PAGE_SIZE]);
+                diskRead++;
+                arrayPages[evict]=page;
 	}
-	else{
-		//FIFO implementation
-		if(checker==2){
-			pageFault++;
-			int k=findKey(0,no_frames-1,page);
-			if(k > -1){
-				page_table_set_entry(pt,page,k,PROT_READ|PROT_WRITE);
-				counter--;
-				pageFault--;
+	else {
+		int i = LinearSearch(0,nframes-1,page);
+		if(i > -1){
+                        page_table_set_entry(pt,page,i,PROT_READ|PROT_WRITE);
+                }
+		else {
+			//custom implementation
+			
+			//FIFO implementation
+			if(checker==2){
+				evict=(evict+1)%nframes;
 			}
-			else if(arrayPages[counter]==-1){
-				page_table_set_entry(pt,page,counter,PROT_READ);
-				disk_read(disk,page,&physmem[counter*PAGE_SIZE]);
-				diskRead++;
-			}
+
+			//RAND implementation
 			else{
-				disk_write(disk,arrayPages[counter],&physmem[counter*PAGE_SIZE]);
-				disk_read(disk,page,&physmem[counter*PAGE_SIZE]);
+				evict = rand()%nframes;
+			}
+
+			pageFault++;
+			int frame, bits;
+			page_table_get_entry(pt, page, &frame, &bits);
+			if(bits>=3){
+				disk_write(disk,arrayPages[evict],&physmem[evict*PAGE_SIZE]);
+				disk_read(disk,page,&physmem[evict*PAGE_SIZE]);
+				page_table_set_entry(pt,arrayPages[evict],0,0);
 				diskRead++;
 				diskWrite++;
-				page_table_set_entry(pt,page,counter,PROT_READ);
+				page_table_set_entry(pt,page,evict,PROT_READ);
+				arrayPages[evict]=page;
 			}
-			arrayPages[counter]=page;
-			counter=(counter+1)%no_frames;
-			page_table_print(pt);
-		}
-
-		//RAND implementation
-		else{
-			pageFault++;
-			int k=findKey(0,no_frames-1,page);
-			int temp=lrand48()%no_frames;
-			if(k > -1){
-				page_table_set_entry(pt,page,k,PROT_READ|PROT_WRITE);
-				pageFault--;
-			}
-			else if(counter < no_frames){
-				while(arrayPages[temp]!=-1){
-					temp=lrand48()%no_frames;
-					pageFault++;
-				}
-				page_table_set_entry(pt,page,temp,PROT_READ);
-				disk_read(disk,page,&physmem[temp*PAGE_SIZE]);
-				diskRead++;
-				arrayPages[temp]=page;
-				counter++;
-			}
-			else{
-				disk_write(disk,arrayPages[temp],&physmem[temp*PAGE_SIZE]);
-				disk_read(disk,page,&physmem[temp*PAGE_SIZE]);
-				diskRead++;
-				diskWrite++;
-				page_table_set_entry(pt,page,temp,PROT_READ);
-				arrayPages[temp]=page;
+			else {
+				page_table_set_entry(pt,page,evict,PROT_READ);
+                                disk_read(disk,page,&physmem[evict*PAGE_SIZE]);
+                                diskRead++;
+                                arrayPages[evict]=page;
 			}
 			page_table_print(pt);
-
 		}
 	}
 }
@@ -138,7 +118,6 @@ int main( int argc, char *argv[] ){
 	}
 
 	struct page_table *pt = page_table_create( npages, nframes, page_fault_handler );
-
 	if(!pt) {
 		fprintf(stderr,"couldn't create page table: %s\n",strerror(errno));
 		return 1;
