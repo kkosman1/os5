@@ -12,7 +12,7 @@ int checker;
 int pageFault=0;
 int diskRead=0;
 int diskWrite=0;
-counter=-1;
+int counter=0;
 int evict=-1;
 
 void printResults(){
@@ -33,15 +33,13 @@ int LinearSearch(int left, int right, int key){
 }
 
 void page_fault_handler( struct page_table *pt, int page ){
-	int npages=page_table_get_npages(pt);
 	int nframes=page_table_get_nframes(pt);
 	char *physmem = page_table_get_physmem(pt);
 
 	if(counter < nframes){
-		page_table_set_entry(pt,page,evict,PROT_READ);
-                disk_read(disk,page,&physmem[evict*PAGE_SIZE]);
-                diskRead++;
-                arrayPages[evict]=page;
+		page_table_set_entry(pt,page,counter,PROT_READ);
+                arrayPages[counter]=page;
+		counter++;
 	}
 	else {
 		int i = LinearSearch(0,nframes-1,page);
