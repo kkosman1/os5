@@ -15,7 +15,6 @@ how to use the page table and disk interfaces.
 #include <string.h>
 #include <errno.h>
 
-<<<<<<< HEAD
 int pageFault=0;
 int diskWrite=0;
 int diskRead=0;
@@ -113,14 +112,7 @@ void page_fault_handler( struct page_table *pt, int page ){
             	}
         	page_table_print(pt);
 	}
-=======
-void page_fault_handler( struct page_table *pt, int page )
-{
-	page_table_set_entry(pt,page,page,PROT_READ|PROT_WRITE);
-	printf("page fault on page #%d\n",page);
-//	exit(1);
->>>>>>> 1a337f0241d12c8cbdbdf6a30b2b1c408b535011
-}
+
 
 int main( int argc, char *argv[] ){
 	if(argc!=5) {
