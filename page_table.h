@@ -1,4 +1,4 @@
-ifndef PAGE_TABLE_H
+#ifndef PAGE_TABLE_H
 #define PAGE_TABLE_H
 
 #include <sys/mman.h>
