@@ -22,15 +22,6 @@ void printResults(){
 	printf("No. of disk writes:%d\n",diskWrite);
 }
 
-int LinearSearch(int left, int right, int key){
-	int i;
-	for(i=left; i<=right; i++){
-		if(arrayPages[i]==key){
-			return i;
-		}
-	}
-	return -1;
-}
 
 void page_fault_handler( struct page_table *pt, int page ){
 	int nframes=page_table_get_nframes(pt);
@@ -42,10 +33,16 @@ void page_fault_handler( struct page_table *pt, int page ){
 		counter++;
 	}
 	else {
-		int i = LinearSearch(0,nframes-1,page);
-		if(i > -1){
-                        page_table_set_entry(pt,page,i,PROT_READ|PROT_WRITE);
+		int frame, bits;
+                page_table_get_entry(pt, page, &frame, &bits);
+		if(bits>=3){
+                        page_table_set_entry(pt,page,frame,PROT_READ|PROT_WRITE|PROT_EXEC);
+			disk_read(disk,page,&physmem[frame*PAGE_SIZE]);
                 }
+		else if (bits>=1){
+			page_table_set_entry(pt,page,frame,PROT_READ|PROT_WRITE);
+			disk_read(disk,page,&physmem[frame*PAGE_SIZE]);
+		}
 		else {
 			//custom implementation
 			
@@ -60,8 +57,7 @@ void page_fault_handler( struct page_table *pt, int page ){
 			}
 
 			pageFault++;
-			int frame, bits;
-			page_table_get_entry(pt, page, &frame, &bits);
+			page_table_get_entry(pt, evict, &frame, &bits);
 			if(bits>=3){
 				disk_write(disk,arrayPages[evict],&physmem[evict*PAGE_SIZE]);
 				disk_read(disk,page,&physmem[evict*PAGE_SIZE]);
