@@ -14,9 +14,10 @@ int diskRead=0;
 int diskWrite=0;
 int counter=0;
 int evict=-1;
+int temp=-1;
 
 void printResults(){
-	printf("\nSUMMARY:\n");
+	printf("SUMMARY:\n");
 	printf("No. of page faults:%d\n",pageFault);
 	printf("No. of disk reads:%d\n",diskRead);
 	printf("No. of disk writes:%d\n",diskWrite);
@@ -41,6 +42,7 @@ void page_fault_handler( struct page_table *pt, int page ){
 		diskRead++;
 	}
 	else {
+		pageFault++;
 		if(counter < nframes){
 			disk_read(disk,page,&physmem[counter*PAGE_SIZE]);
 			page_table_set_entry(pt,page,counter,PROT_READ);
@@ -50,9 +52,17 @@ void page_fault_handler( struct page_table *pt, int page ){
 		}
 		else{
 			//custom implementation
-		
+			if(checker==3){
+				if (temp==-1){
+					evict=(evict+1)%nframes;
+				}
+				else{
+					evict=temp;
+					temp=-1;
+				}
+			}
 			//FIFO implementation
-			if(checker==2){
+			else if(checker==2){
 				evict=(evict+1)%nframes;
 			}
 			//RAND implementation
@@ -60,7 +70,6 @@ void page_fault_handler( struct page_table *pt, int page ){
 				evict=rand()%nframes;
 			}
 
-			pageFault++;
 			page_table_get_entry(pt, arrayPages[evict], &frame, &bits);
 			if(bits>=3){
 				disk_write(disk,arrayPages[evict],&physmem[evict*PAGE_SIZE]);
@@ -70,14 +79,16 @@ void page_fault_handler( struct page_table *pt, int page ){
 				diskWrite++;
 				page_table_set_entry(pt,page,evict,PROT_READ);
 				arrayPages[evict]=page;
+				temp=evict;
 			}
 			else {
 				page_table_set_entry(pt,page,evict,PROT_READ);
 				disk_read(disk,page,&physmem[evict*PAGE_SIZE]);
 				diskRead++;
 				arrayPages[evict]=page;
+				temp=evict;
 			}
-			page_table_print(pt);
+			//page_table_print(pt);
 		}
 	}
 }
