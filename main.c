@@ -28,6 +28,7 @@ void page_fault_handler( struct page_table *pt, int page ){
 	char *physmem = page_table_get_physmem(pt);
 
 	if(counter < nframes){
+		disk_read(disk,page,&physmem[counter*PAGE_SIZE]);
 		page_table_set_entry(pt,page,counter,PROT_READ);
                 arrayPages[counter]=page;
 		counter++;
