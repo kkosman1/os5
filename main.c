@@ -30,22 +30,16 @@ void page_fault_handler( struct page_table *pt, int page ){
 	int frame, bits;
 	page_table_get_entry(pt, page, &frame, &bits);
 	if(bits>=3){
-		arrayPages[frame]=page;
 		page_table_set_entry(pt,page,frame,PROT_READ|PROT_WRITE|PROT_EXEC);
-		disk_read(disk,page,&physmem[frame*PAGE_SIZE]);
-		diskRead++;
 	}
 	else if (bits>=1){
-		arrayPages[frame]=page;
 		page_table_set_entry(pt,page,frame,PROT_READ|PROT_WRITE);
-		disk_read(disk,page,&physmem[frame*PAGE_SIZE]);
-		diskRead++;
 	}
 	else {
 		pageFault++;
 		if(counter < nframes){
-			disk_read(disk,page,&physmem[counter*PAGE_SIZE]);
 			page_table_set_entry(pt,page,counter,PROT_READ);
+			disk_read(disk,page,&physmem[counter*PAGE_SIZE]);
 		        arrayPages[counter]=page;
 			counter++;
 			diskRead++;
@@ -73,11 +67,11 @@ void page_fault_handler( struct page_table *pt, int page ){
 			page_table_get_entry(pt, arrayPages[evict], &frame, &bits);
 			if(bits>=3){
 				disk_write(disk,arrayPages[evict],&physmem[evict*PAGE_SIZE]);
-				disk_read(disk,page,&physmem[evict*PAGE_SIZE]);
 				page_table_set_entry(pt,arrayPages[evict],0,0);
 				diskRead++;
 				diskWrite++;
 				page_table_set_entry(pt,page,evict,PROT_READ);
+				disk_read(disk,page,&physmem[evict*PAGE_SIZE]);
 				arrayPages[evict]=page;
 				temp=evict;
 			}
