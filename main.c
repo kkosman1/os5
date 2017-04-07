@@ -22,43 +22,46 @@ void printResults(){
 	printf("No. of disk writes:%d\n",diskWrite);
 }
 
-
 void page_fault_handler( struct page_table *pt, int page ){
 	int nframes=page_table_get_nframes(pt);
 	char *physmem = page_table_get_physmem(pt);
 
-	if(counter < nframes){
-		disk_read(disk,page,&physmem[counter*PAGE_SIZE]);
-		page_table_set_entry(pt,page,counter,PROT_READ);
-                arrayPages[counter]=page;
-		counter++;
+	int frame, bits;
+	page_table_get_entry(pt, page, &frame, &bits);
+	if(bits>=3){
+		arrayPages[frame]=page;
+		page_table_set_entry(pt,page,frame,PROT_READ|PROT_WRITE|PROT_EXEC);
+		disk_read(disk,page,&physmem[frame*PAGE_SIZE]);
+		diskRead++;
+	}
+	else if (bits>=1){
+		arrayPages[frame]=page;
+		page_table_set_entry(pt,page,frame,PROT_READ|PROT_WRITE);
+		disk_read(disk,page,&physmem[frame*PAGE_SIZE]);
+		diskRead++;
 	}
 	else {
-		int frame, bits;
-                page_table_get_entry(pt, page, &frame, &bits);
-		if(bits>=3){
-                        page_table_set_entry(pt,page,frame,PROT_READ|PROT_WRITE|PROT_EXEC);
-			disk_read(disk,page,&physmem[frame*PAGE_SIZE]);
-                }
-		else if (bits>=1){
-			page_table_set_entry(pt,page,frame,PROT_READ|PROT_WRITE);
-			disk_read(disk,page,&physmem[frame*PAGE_SIZE]);
+		if(counter < nframes){
+			disk_read(disk,page,&physmem[counter*PAGE_SIZE]);
+			page_table_set_entry(pt,page,counter,PROT_READ);
+		        arrayPages[counter]=page;
+			counter++;
+			diskRead++;
 		}
-		else {
+		else{
 			//custom implementation
-			
+		
 			//FIFO implementation
 			if(checker==2){
 				evict=(evict+1)%nframes;
 			}
-
 			//RAND implementation
 			else{
-				evict = rand()%nframes;
+				evict=rand()%nframes;
 			}
 
 			pageFault++;
-			page_table_get_entry(pt, evict, &frame, &bits);
+			page_table_get_entry(pt, arrayPages[evict], &frame, &bits);
 			if(bits>=3){
 				disk_write(disk,arrayPages[evict],&physmem[evict*PAGE_SIZE]);
 				disk_read(disk,page,&physmem[evict*PAGE_SIZE]);
@@ -70,9 +73,9 @@ void page_fault_handler( struct page_table *pt, int page ){
 			}
 			else {
 				page_table_set_entry(pt,page,evict,PROT_READ);
-                                disk_read(disk,page,&physmem[evict*PAGE_SIZE]);
-                                diskRead++;
-                                arrayPages[evict]=page;
+				disk_read(disk,page,&physmem[evict*PAGE_SIZE]);
+				diskRead++;
+				arrayPages[evict]=page;
 			}
 			page_table_print(pt);
 		}
