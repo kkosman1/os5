@@ -8,12 +8,14 @@
 
 int *arrayPages;
 struct disk *disk;
+char *physmem;
 int checker;
 int pageFault=0;
 int diskRead=0;
 int diskWrite=0;
 int counter=0;
 int evict=-1;
+int eCount=-1;
 int temp=-1;
 
 void printResults(){
@@ -25,7 +27,6 @@ void printResults(){
 
 void page_fault_handler( struct page_table *pt, int page ){
 	int nframes=page_table_get_nframes(pt);
-	char *physmem = page_table_get_physmem(pt);
 
 	int frame, bits;
 	page_table_get_entry(pt, page, &frame, &bits);
@@ -48,7 +49,8 @@ void page_fault_handler( struct page_table *pt, int page ){
 			//custom implementation
 			if(checker==3){
 				if (temp==-1){
-					evict=(evict+1)%nframes;
+					eCount=(eCount+1)%nframes;
+					evict=eCount;
 				}
 				else{
 					evict=temp;
@@ -63,9 +65,9 @@ void page_fault_handler( struct page_table *pt, int page ){
 			else{
 				evict=rand()%nframes;
 			}
-
-			page_table_get_entry(pt, arrayPages[evict], &frame, &bits);
-			if(bits>=3){
+			int evictFrame, evictBits;
+			page_table_get_entry(pt, arrayPages[evict], &evictFrame, &evictBits);
+			if(evictBits>=3){
 				disk_write(disk,arrayPages[evict],&physmem[evict*PAGE_SIZE]);
 				page_table_set_entry(pt,arrayPages[evict],0,0);
 				diskRead++;
@@ -96,15 +98,13 @@ int main( int argc, char *argv[] ){
 	int npages = atoi(argv[1]);
 	int nframes = atoi(argv[2]);
 
-	if(!strcmp(argv[3],"rand")){
+	if(!strcmp(argv[3],"rand"))
 		checker=1;
-	}
-	else if(!strcmp(argv[3],"fifo")){
+	else if(!strcmp(argv[3],"fifo"))
 		checker=2;
-	}
-	else{
+	else
 		checker=3;
-	}
+
 	const char *program = argv[4];
 
 	arrayPages=(int *)malloc(nframes*sizeof(int));
@@ -114,7 +114,6 @@ int main( int argc, char *argv[] ){
 	}
 
 	disk = disk_open("myvirtualdisk",npages);
-
 	if(!disk) {
 		fprintf(stderr,"couldn't create virtual disk: %s\n",strerror(errno));
 		return 1;
@@ -128,20 +127,21 @@ int main( int argc, char *argv[] ){
 
 	char *virtmem = page_table_get_virtmem(pt);
 
+	physmem = page_table_get_physmem(pt);
+
 	if(!strcmp(program,"sort")) {
 		sort_program(virtmem,npages*PAGE_SIZE);
 	} else if(!strcmp(program,"scan")) {
 		scan_program(virtmem,npages*PAGE_SIZE);
-
 	} else if(!strcmp(program,"focus")) {
 		focus_program(virtmem,npages*PAGE_SIZE);
-
 	} else {
 		fprintf(stderr,"unknown program: %s\n",argv[3]);
 	}
 
 	page_table_delete(pt);
 	disk_close(disk);
+	free(arrayPages);
 	printResults();
 	return 0;
 }
